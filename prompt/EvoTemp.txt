@@ -1,0 +1,8 @@
+Question: Which wildly popular show was recently green lit for a new season?
+Answer: “Squid Game”
+
+Question: Which team won the 2022 NHL Stanley Cup Finals?
+Answer: Colorado Avalanche
+
+Question: The prime minister of which European nation stepped down this week?
+Answer: Italy

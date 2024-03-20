@@ -1,0 +1,8 @@
+Question: Blackfin is a family of processors developed by the company that is headquartered in what city?
+Answer: Norwood, Massachusetts
+
+Question: Were Patrick McCabe and John Braine of the same nationality?
+Answer: no
+
+Question: Colossians 2 is in what number book of the New Testament?
+Answer: twelfth
