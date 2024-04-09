@@ -1,6 +1,6 @@
 # CAG
 
-This repository contains the code and data for the paper *Not All Contexts Are Equal: Teaching LLMs Credibility-aware Generation*. 
+This repository contains the code, data and models for the paper *Not All Contexts Are Equal: Teaching LLMs Credibility-aware Generation*. 
 ![](first.png)
 ## QuickStart
 You can download our Credibility-aware Generation model and our Credibility-aware Generation Benchmark from HuggingFace Hub.
