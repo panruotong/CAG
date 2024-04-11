@@ -59,7 +59,7 @@ def infer(question, high_credibility, medium_credibility, low_credibility):
 
 if __name__ == "__main__":
     #load model
-    model_path = "/mnt/panruotong2021/Code/output_models/confidence_v4"
+    model_path = "/path/to/CAG/model"
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto", trust_remote_code=True)
 
@@ -74,7 +74,9 @@ if __name__ == "__main__":
                 medium_credibility = gr.Textbox(label="Medium credibility")
             with gr.Row():
                 low_credibility = gr.Textbox(label="Low credibility")
-            examples = [["What position does David Cameron serve?", "David Cameron, former PM and now Britain's new foreign minister", "", "David Cameron was the youngest Prime Minister since Lord Liverpool in 1812.\nDavid Cameron lands teaching job at Abu Dhabi university"]]
+            examples = [["What position does David Cameron serve?", "David Cameron, former PM and now Britain's new foreign minister", "", "David Cameron was the youngest Prime Minister since Lord Liverpool in 1812.\nDavid Cameron lands teaching job at Abu Dhabi university"],
+            ["Recommend two destinations for me.", "Bora Bora#2 in World's Best Places to Visit for 2023-2024\nWhat this 12-square-mile French Polynesian island may lack in size it makes up for in sheer tropical beauty. Here, you'll find picturesque beaches, lush jungles and luxurious resorts set on surrounding islets. \nMaui #6 in World's Best Places to Visit for 2023-2024 \nWhether you're driving along the Road to Hana, enjoying a bird's-eye view of Maui's lush coastline from a helicopter, ...", "Glacier National Park #3 in World's Best Places to Visit for 2023-2024\nSnow-capped peaks, alpine meadows and azure lakes are just a few reasons why Glacier National Park is one of America's most striking parks. ", "Paris #1 in World's Best Places to Visit for 2023-2024\nFrance's magnetic City of Light is a perennial tourist destination, drawing visitors with its iconic attractions, like the Eiffel Tower and the Louvre, and its unmistakable je ne sais quoi. \nRome #4 in World's Best Places to Visit for 2023-2024\nWhen you visit Italy's capital city, prepare to cross a few must-see landmarks – including the Colosseum, the Trevi Fountain and the Pantheon – off of your bucket list."]
+            ]
             
         with gr.Row():
             submit_button = gr.Button("Generate")
@@ -85,11 +87,12 @@ if __name__ == "__main__":
             inputs=[question, high_credibility, medium_credibility, low_credibility],
             outputs=[gr.Textbox(label="Output")],
         )
-        
-        #demo.add_examples(examples, inputs=[question, high_credibility, medium_credibility, low_credibility], outputs=[submit_button])
-    server_name = "0.0.0.0"
-    server_port = 7789
 
     demo.queue()
+    #Generate local link
+    server_name = "0.0.0.0"
+    server_port = 7789
     demo.launch(share=False, server_name=server_name, server_port=server_port)
+    
+    #Use Gradio to generate a public link
     #demo.launch(share=True)

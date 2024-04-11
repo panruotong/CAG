@@ -5,17 +5,29 @@ This repository contains the code, data and models for the paper _Not All Contex
 
 ## QuickStart
 
-You can download our Credibility-aware Generation model and our Credibility-aware Generation Benchmark from HuggingFace Hub.
+### Running CAG for Question Answering Using Our Demo
 
-[CAG 7B model](https://huggingface.co/ruotong-pan/CAG-7b) | [CAG 13B model](https://huggingface.co/ruotong-pan/CAG-13b) | [CAG Mistral 7B model](https://huggingface.co/ruotong-pan/CAG-mistral-7b) | [CAGBenchmark](https://huggingface.co/datasets/ruotong-pan/CAGB)
+#### Step 1: Download the Model
 
-To evaluate the model you need to install the environment.
+You can download our Credibility-aware Generation model from HuggingFace Hub.
+
+[CAG 7B model](https://huggingface.co/ruotong-pan/CAG-7b) | [CAG 13B model](https://huggingface.co/ruotong-pan/CAG-13b) | [CAG Mistral 7B model](https://huggingface.co/ruotong-pan/CAG-mistral-7b)
+
+#### Step 2: Install Required Environment
 
 ```
 pip install -r requirements.txt
 ```
 
+#### Step 3: Run the Demo
+
+```
+python demo.py
+```
+
 ## CAGB
+
+Access to the CAGB is available through the `datasets` folder in our repository or via the [Hugging Face](https://huggingface.co/datasets/ruotong-pan/CAGB).
 
 The CAGB contains 3 scenarios with a total of seven datasets.
 
