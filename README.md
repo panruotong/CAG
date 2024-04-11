@@ -1,6 +1,6 @@
 # CAG
 
-This repository contains the code, data and models for the paper _Not All Contexts Are Equal: Teaching LLMs Credibility-aware Generation_.
+This repository contains the code, data and models for the paper [_Not All Contexts Are Equal: Teaching LLMs Credibility-aware Generation_](https://arxiv.org/abs/2404.06809).
 ![](first.png)
 
 ## QuickStart
