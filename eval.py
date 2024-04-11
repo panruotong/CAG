@@ -64,21 +64,22 @@ def get_eval_dataset_list(args):
         data_list.append("HotpotQA")
     if args.musique:
         data_list.append("Musique")
-    if args.asqa:
-        data_list.append("ASQA")
     if args.rgb:
         data_list.append("RGB")
-    if args.trivia:
-        data_list.append("TriviaQA")
     if args.evotemp:
         data_list.append("EvoTemp")
     if args.misinfo:
         data_list.append("NewsPolluted")
-    if args.pop:
-        data_list.append("PopQA")
     return data_list
 
-def infer_vllm(model, model_type, eval_data, batch_size, fw):
+def get_system_prompt(setting_type):
+    if "cred" in setting_type:
+        return "You are an assistant who can answer questions based on the given passages. Each passage has a credibility score that indicates the relevance and accuracy of the passage to the question. Your answer need to combine multiple passages and their credibility."
+    else:
+        return "You're a helpful AI assistant. The assistant answers questions based on given passages.\n"
+
+    
+def infer_vllm(model, model_type, eval_data, batch_size, fw, system):
     from vllm import SamplingParams
     sampling_params = SamplingParams(temperature=0.01, top_p=1, max_tokens=100)
     rets = []
@@ -86,21 +87,14 @@ def infer_vllm(model, model_type, eval_data, batch_size, fw):
         batched_inp = []
         responses = []
         for sample in eval_data[i: i + batch_size]:
-            if "llama-2" in model_type:
-                #system 
-                #question, docs = sample["conversations"][0]["value"].split('\n', 1)
-                #instruction = system + demo.format(docs, question)
-                conv.append_message(conv.roles[0], sample["conversations"][0]["value"])
-            elif "vicuna" in model_type or "vanilla" in model_type:
+            if "vicuna" in model_type or "vanilla" in model_type:
                 conv = get_conv_template("vicuna_v1.1")
                 conv.append_message(conv.roles[0], sample["conversations"][0]["value"])
             elif "mistral" in model_type and "instruct" not in model_type:
                 conv = get_conv_template("mistral")
-                system = "You are an assistant who can answer questions based on the given passages. Each passage has a credibility score that indicates the relevance and accuracy of the passage to the question. Your answer need to combine multiple passages and their credibility."
                 conv.append_message(conv.roles[0], system + sample["conversations"][0]["value"])
             elif "mistral" in model_type and "instruct" in model_type:
                 conv = get_conv_template("mistral")
-                system = "You are an accurate and reliable AI assistant that can answer questions with the help of external documents."
                 conv.append_message(conv.roles[0], system + sample["conversations"][0]["value"])
             conv.append_message(conv.roles[1], None)
             responses.append({"golden": sample["conversations"][1]["value"]})
@@ -120,11 +114,10 @@ def infer_vllm(model, model_type, eval_data, batch_size, fw):
             response.update({"output": generated_text.strip()})
             fw.write(json.dumps(response, ensure_ascii=False)+"\n")
 
-def infer_lm_vllm(model, tokenizer, model_type, eval_data, shots, batch_size, f):
+def infer_lm_vllm(model, tokenizer, model_type, eval_data, shots, batch_size, f, system):
     from vllm import SamplingParams
     sampling_params = SamplingParams(temperature=0.01, top_p=1, max_tokens=512)
     rets = []
-    system = "You're a helpful AI assistant. The assistant answers questions based on given passages.\n"
     demo = shots
     
     for i in tqdm(range(0, len(eval_data), batch_size)):
@@ -160,25 +153,24 @@ def eval_chatgpt(args):
         if data_name == "EvoTemp":
             for noise_ratio in [0.4, 0.6, 0.8]:
                 eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     evalChatgpt(eval_data, args.model_type, args.setting_type, args.temperature, f)
         elif data_name == "NewsPolluted":
-            #0.5, 0.67, 
-            for noise_ratio in [0.75]:
+            for noise_ratio in [0.5, 0.67, 0.75]:
                 eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     evalChatgpt(eval_data, args.model_type, args.setting_type, args.temperature, f)
         elif data_name == "RGB":
             for noise_ratio in [0.2, 0.4, 0.6, 0.8]:
                 eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     evalChatgpt(eval_data, args.model_type, args.setting_type, args.temperature, f)
         else:
             eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart")
-            with open(os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}.json"), "w") as f:
+            with open(os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}.json"), "w") as f:
                 evalChatgpt(eval_data, args.model_type, args.setting_type, args.temperature, f)
 
 def eval_vllm(args):
@@ -196,6 +188,7 @@ def eval_vllm(args):
         args.model_path,
         padding_side="left"
     )
+    system_prompt = get_system_prompt(args.setting_type)
     for data_name in data_list:
         if is_lm:
             with open(os.path.join('./prompt', f'{data_name}.txt')) as fshots:
@@ -207,12 +200,12 @@ def eval_vllm(args):
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_noise_ratio{noise_ratio}")
                 else:
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     if is_lm:
-                        responses = infer_lm_vllm(model, tokenizer, args.model_type, eval_data, shots, batch_size, f)
+                        responses = infer_lm_vllm(model, tokenizer, args.model_type, eval_data, shots, batch_size, f, system_prompt)
                     else:
-                        responses = infer_vllm(model, args.model_type, eval_data, batch_size, f)
+                        responses = infer_vllm(model, args.model_type, eval_data, batch_size, f, system_prompt)
                 compute_exact_match(output_path, data_name)
         elif data_name == "RGB":
             #for noise_ratio in [0.2, 0.4, 0.6, 0.8]:
@@ -221,26 +214,25 @@ def eval_vllm(args):
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_noise_ratio{noise_ratio}")
                 else:
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     if is_lm:
-                        responses = infer_lm_vllm(model, tokenizer, args.model_type, eval_data, shots, batch_size, f)
+                        responses = infer_lm_vllm(model, tokenizer, args.model_type, eval_data, shots, batch_size, f, system_prompt)
                     else:
-                        responses = infer_vllm(model, args.model_type, eval_data, batch_size, f)
+                        responses = infer_vllm(model, args.model_type, eval_data, batch_size, f, system_prompt)
                 compute_exact_match(output_path, data_name)
         elif data_name == "NewsPolluted":
-            #0.5, 0.67, 
-            for noise_ratio in [0.75]:
+            for noise_ratio in [0.5, 0.67, 0.75]:
                 if is_lm:
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_noise_ratio{noise_ratio}")
                 else:
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     if is_lm:
-                        responses = infer_lm_vllm(model, tokenizer, args.model_type, eval_data, shots, batch_size, f)
+                        responses = infer_lm_vllm(model, tokenizer, args.model_type, eval_data, shots, batch_size, f, system_prompt)
                     else:
-                        responses = infer_vllm(model, args.model_type, eval_data, batch_size, f)
+                        responses = infer_vllm(model, args.model_type, eval_data, batch_size, f, system_prompt)
                 compute_exact_match(output_path, data_name)
         else:
             if is_lm:
@@ -248,35 +240,25 @@ def eval_vllm(args):
             else:
                 eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart")
             
-            output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}.json")
+            output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}.json")
             with open(output_path, "w") as f:
                 if is_lm:
-                    responses = infer_lm_vllm(model, tokenizer, args.model_type, eval_data, shots, batch_size, f)
+                    responses = infer_lm_vllm(model, tokenizer, args.model_type, eval_data, shots, batch_size, f, system_prompt)
                 else:
-                    responses = infer_vllm(model, args.model_type, eval_data, batch_size, f)
+                    responses = infer_vllm(model, args.model_type, eval_data, batch_size, f, system_prompt)
         compute_exact_match(output_path, data_name)
 
-def infer_lm(temperature, max_new_tokens, eval_data, shots, tokenizer, model, model_type, f):
+def infer_lm(temperature, max_new_tokens, eval_data, shots, tokenizer, model, model_type, f, system):
     rets = []
     for item in tqdm(eval_data):
         if "CAG" in model_type:
             conv = get_conv_template("CAG")
             conv.append_message(conv.roles[0], item["conversations"][0]["value"])
         elif "llama-2" in model_type:
-            system = "You're a helpful AI assistant. The assistant answers questions based on given passages. \n"
             demo = shots
             prompt = system + demo + "\n\n" + item["conversations"][0]["value"]
-            #suffix = "Passages:{}\n{}\nAnswer:"
-            '''
-            if "value" in item["conversations"][0].keys():
-                #question, docs = item["conversations"][0]["value"].split('\n', 1)
-                #conv.append_message(conv.roles[0], system + demo + "\n\n" + suffix.format(docs, question))
-                prompt = system + demo + "\n\n" + suffix.format(docs, question)
-                golden = item["conversations"][1]["value"]
-            '''
         else:
             conv = get_conv_template("vicuna_v1.1")
-            system = "You are an accurate and reliable AI assistant that can answer questions with the help of external documents."
             conv.append_message(conv.roles[0], system+"\n"+item["conversations"][0]["value"])
         golden = item["conversations"][1]["value"]  
         
@@ -299,7 +281,7 @@ def infer_lm(temperature, max_new_tokens, eval_data, shots, tokenizer, model, mo
         output = output.strip()
         f.write(json.dumps({"output": output, "golden": golden}, ensure_ascii=False)+"\n")
 
-def infer(temperature, max_new_tokens, eval_data, tokenizer, model, model_type, f):
+def infer(temperature, max_new_tokens, eval_data, tokenizer, model, model_type, f, system):
     rets = []
     for item in tqdm(eval_data):
         if "CAG" in model_type:
@@ -307,15 +289,12 @@ def infer(temperature, max_new_tokens, eval_data, tokenizer, model, model_type, 
             conv.append_message(conv.roles[0], item["conversations"][0]["value"])
         elif "vicuna" in model_type or "vanilla" in model_type:
             conv = get_conv_template("vicuna_v1.1")
-            system = "You are an accurate and reliable AI assistant that can answer questions with the help of external documents."
             conv.append_message(conv.roles[0], system+"\n"+item["conversations"][0]["value"])
         elif "mistral" in model_type and "instruct" not in model_type:
             conv = get_conv_template("mistral")
-            system = "You are an assistant who can answer questions based on the given passages. Each passage has a credibility score that indicates the relevance and accuracy of the passage to the question. Your answer need to combine multiple passages and their credibility."
             conv.append_message(conv.roles[0], system+"\n"+item["conversations"][0]["value"])
         elif "mistral" in model_type and "instruct" in model_type:
             conv = get_conv_template("mistral")
-            system = "You are an accurate and reliable AI assistant that can answer questions with the help of external documents."
             conv.append_message(conv.roles[0], system + sample["conversations"][0]["value"])
         golden = item["conversations"][1]["value"]
         conv.append_message(conv.roles[1], None)
@@ -344,7 +323,7 @@ def eval(args):
     model, tokenizer = load_model_tokenizer(args)
     is_lm = args.is_lm
     data_list = get_eval_dataset_list(args)
-    
+    system_prompt = get_system_prompt(args.setting_type)
     for data_name in data_list:
         if data_name == "EvoTemp":
             for noise_ratio in [0.4, 0.6, 0.8]:
@@ -352,30 +331,29 @@ def eval(args):
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_noise_ratio{noise_ratio}")
                 else:
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     if is_lm:
                         with open(f'./prompt/{data_name}.txt', 'r') as f_shot:
                             shots = f_shot.read()
-                        infer_lm(args.temperature, args.max_new_tokens, eval_data, shots, tokenizer, model, args.model_type, f)
+                        infer_lm(args.temperature, args.max_new_tokens, eval_data, shots, tokenizer, model, args.model_type, f, system_prompt)
                     else:
-                        infer(args.temperature, args.max_new_tokens, eval_data, tokenizer, model, args.model_type, f)
+                        infer(args.temperature, args.max_new_tokens, eval_data, tokenizer, model, args.model_type, f, system_prompt)
                 compute_exact_match(output_path, data_name)
         elif data_name == "NewsPolluted":
-            #0.5, 0.67,
-            for noise_ratio in [0.75]:
+            for noise_ratio in [0.5, 0.67, 0.75]:
                 if is_lm:
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_noise_ratio{noise_ratio}")
                 else:
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     if is_lm:
                         with open(f'./prompt/{data_name}.txt', 'r') as f_shot:
                             shots = f_shot.read()
-                        infer_lm(args.temperature, args.max_new_tokens, eval_data, shots, tokenizer, model, args.model_type, f)
+                        infer_lm(args.temperature, args.max_new_tokens, eval_data, shots, tokenizer, model, args.model_type, f, system_prompt)
                     else:
-                        infer(args.temperature, args.max_new_tokens, eval_data, tokenizer, model, args.model_type, f)
+                        infer(args.temperature, args.max_new_tokens, eval_data, tokenizer, model, args.model_type, f, system_prompt)
                 compute_exact_match(output_path, data_name)
         elif data_name == "RGB":
             for noise_ratio in [0.2, 0.4, 0.6, 0.8]:
@@ -383,28 +361,28 @@ def eval(args):
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_noise_ratio{noise_ratio}")
                 else:
                     eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart_noise_ratio{noise_ratio}")
-                output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
+                output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}_noise_ratio{noise_ratio}.json")
                 with open(output_path, "w") as f:
                     if is_lm:
                         with open(f'./prompt/{data_name}.txt', 'r') as f_shot:
                             shots = f_shot.read()
-                        infer_lm(args.temperature, args.max_new_tokens, eval_data, shots, tokenizer, model, args.model_type, f)
+                        infer_lm(args.temperature, args.max_new_tokens, eval_data, shots, tokenizer, model, args.model_type, f, system_prompt)
                     else:
-                        infer(args.temperature, args.max_new_tokens, eval_data, tokenizer, model, args.model_type, f)
+                        infer(args.temperature, args.max_new_tokens, eval_data, tokenizer, model, args.model_type, f, system_prompt)
                 compute_exact_match(output_path, data_name)
         else:
             if is_lm:
                 eval_data = load_data(args.data_path, data_name, f"{args.setting_type}.json")
             else:
                 eval_data = load_data(args.data_path, data_name, f"{args.setting_type}_qstart")
-            output_path = os.path.join("./result-eval", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}.json")
+            output_path = os.path.join("./result", data_name, f"{args.model_type}_{args.save_suffix}_tmp{args.temperature}.json")
             with open(output_path, "w") as f:
                 if is_lm:
                     with open(f'./prompt/{data_name}.txt', 'r') as f_shot:
                         shots = f_shot.read()
-                    infer_lm(args.temperature, args.max_new_tokens, eval_data, shots, tokenizer, model, args.model_type, f)
+                    infer_lm(args.temperature, args.max_new_tokens, eval_data, shots, tokenizer, model, args.model_type, f, system_prompt)
                 else:
-                    infer(args.temperature, args.max_new_tokens, eval_data, tokenizer, model, args.model_type, f)
+                    infer(args.temperature, args.max_new_tokens, eval_data, tokenizer, model, args.model_type, f, system_prompt)
             compute_exact_match(output_path, data_name)
 def parser():
     parser = argparse.ArgumentParser()
@@ -418,12 +396,9 @@ def parser():
     parser.add_argument("--hotpot", action='store_true')
     parser.add_argument("--musique", action='store_true')
     parser.add_argument("--wikiqa", action='store_true')
-    parser.add_argument("--asqa", action='store_true')
     parser.add_argument("--rgb", action='store_true')
-    parser.add_argument("--trivia", action='store_true')
     parser.add_argument("--evotemp", action='store_true')
     parser.add_argument("--misinfo", action='store_true')
-    parser.add_argument("--pop", action='store_true')
     parser.add_argument("--is_lm", action='store_true')
     parser.add_argument("--vllm", action='store_true')
     parser.add_argument("--parallel_size", type=int, default=1)

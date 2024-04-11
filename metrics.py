@@ -37,24 +37,6 @@ def eval(data_path):
     print({"exact_str_match": count / len(outputs)})
     #return 
 
-def eval_trivia(data_path):
-    start = 0
-    end = 500
-    outputs, goldens = load_jsonl(data_path)
-    
-    if "llama-2" in data_path or "Llama-2" in data_path:
-        
-        for i in range(len(outputs)):
-            outputs[i] = outputs[i].split('\n')[0]
-    
-    count = 0
-    for output, golden in zip(outputs, goldens):
-        for golden_ in golden:
-            if golden_ in output:
-                count += 1
-                break
-    rets = {"exact_str_match": count/len(outputs)}
-    print(rets)
 
 def exact_presence(short_answers, context):
     """Verify if any of the answers is present in the given context.
@@ -119,15 +101,6 @@ def eval_evotemp(data_path):
         json.dump(rets, f, indent=4, ensure_ascii=False)
     print(rets)
 
-def eval_PopQA(data_path):
-    outputs, goldens = load_jsonl(data_path)
-    count = 0
-    for output, golden in zip(outputs, goldens):
-        for g in golden:
-            if g in output:
-                count += 1
-                break
-    print({"exact_str_match": count / len(outputs)})
 
 def checkanswer(prediction, ground_truth):
     prediction = prediction.lower()
@@ -167,12 +140,8 @@ def eval_rgb(data_path):
     print(rets)
 
 def compute_exact_match(data_path, dataset_name):
-    if dataset_name == "Trivia":
-        return eval_trivia(data_path)
-    elif dataset_name == "EvoTemp" or dataset_name == "EvoTempQBefore":
+    if dataset_name == "EvoTemp":
         return eval_evotemp(data_path)
-    elif dataset_name == "PopQA":
-        return eval_PopQA(data_path)
     elif dataset_name == "RGB":
         return eval_rgb(data_path)
     else:
@@ -180,12 +149,7 @@ def compute_exact_match(data_path, dataset_name):
 
 
 def EM(model_type, type_):
-    #/mnt/panruotong2021/Code/CAG/result-eval/HotpotQA/self_rag_concat_tmp0.01.json
-    base_dir = "/mnt/panruotong2021/Code/CAG/result-eval/"
-    #, "EvoTemp", "TriviaQA" "RGB"
-    #for data_name in ["EvoTemp"]: NewsPolluted
-    #EvoTempQBefore "HotpotQA", "2wikiMultiHopQA", "Musique", 
-    #"EvoTemp", "NewsPolluted" 2wikiMultiHopQA
+    base_dir = "/path/to/result/"
     for data_name in ["Musique"]:
         print(data_name)
         for file in os.listdir(f"{base_dir}{data_name}"):
@@ -193,16 +157,6 @@ def EM(model_type, type_):
                 print(file)
                 compute_exact_match(os.path.join(f"{base_dir}{data_name}", file), data_name)
                 print("\n")
-        '''
-        data_path = f"{base_dir}{data_name}/{model_type}_{type_}_tmp0.01.json"
-        compute_exact_match(data_path, data_name)
-        
-        #0.2, 0.4, 0.6, 0.8
-        #0.5, 0.67, 0.75
-        for noise_ratio in [0.2, 0.4, 0.6, 0.8]:
-            data_path = f"{base_dir}{data_name}/{model_type}_{type_}_tmp0.01_noise_ratio{noise_ratio}.json"
-            compute_exact_match(data_path, data_name)
-        '''
         
 if __name__ == "__main__":
     for type_ in [model_type]:
