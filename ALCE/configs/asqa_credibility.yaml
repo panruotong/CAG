@@ -1,0 +1,10 @@
+---
+prompt_file: prompts/asqa_credibility.json
+eval_file: data/asqa_eval_credibility.json
+shot: 2
+ndoc: 5
+dataset_name: asqa
+tag: score
+model: path/to/model
+temperature: 0.01
+top_p: 0.95
